@@ -22,9 +22,9 @@ const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
   setSQL +`${field}=:${field} ` + ((index === fields.length - 1) ? '' : ', '), 'SET ');
 
 
-  const buildBookingsDeleteSql = () => {
+  const buildBookingsDeleteSql = (id) => {
     let table = 'bookings';
-    return `DELETE FROM ${table} WHERE BookingId =:BookingId`;
+    return `DELETE FROM ${table} WHERE BookingId=${id}`;
   };
 
 // const buildBookingsUpdateSql = () => {
@@ -35,13 +35,16 @@ const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
 
 // };
 
-
-
-const buildBookingsInsertSql = () => {
+const buildBookingsInsertSql = (record) => {
   let table = `bookings`;
-  let mutableFields = ['VehicleId', 'SalesId', 'CustomerId', 'DateBooked'];
+  // let mutableFields = ['VehicleId', 'SalesId', 'CustomerId', 'DateBooked'];
   // console.log(buildSetFields(mutableFields), "build set fields");
-  return `INSERT INTO ${table} ` + buildSetFields(mutableFields) ;
+  // return `INSERT INTO ${table} ` + buildSetFields(mutableFields) ;
+  return `INSERT INTO ${table} SET
+          VehicleId="${record['VehicleId']}",
+          CustomerId="${record['CustomerId']}", 
+          SalesId="${record['SalesId']}",
+          DateBooked="${record['DateBooked']}"`
 };
 
 const buildBookingsSelectSql = (whereField, id) => {
@@ -85,7 +88,7 @@ const buildBookingsSelectSql = (whereField, id) => {
   const createBookings = async (sql, record) => {
     try {
         const status = await database.query(sql,record);
-        const recoverRecordSql = buildBookingsSelectSql(status[0].insertId, null);
+        const recoverRecordSql = buildBookingsSelectSql(status[0].insertId);
         const {isSuccess, result, message} = await read(recoverRecordSql);
 
         return isSuccess
@@ -110,7 +113,7 @@ const buildBookingsSelectSql = (whereField, id) => {
     };
     const deleteBookings = async (sql, id) => {
       try {
-        const status = await database.query(sql, { "BookingId": id });
+        const status = await database.query(sql,{ BookingID: id });
         
         return status[0].affectedRows === 0
           ? { isSuccess: false, result: null, message: `Failed to delete record ${id}` }
@@ -124,9 +127,9 @@ const buildBookingsSelectSql = (whereField, id) => {
     const postBookingsController = async(req, res) => {
       // Validate Request 
       // Data Access 
-      const sql = buildBookingsInsertSql();
+      const sql = buildBookingsInsertSql(req.body);
       console.log(sql, "build insert syntax sql ");
-      const { isSuccess, result, message: accessMessage } = await createBookings(sql, req.body);
+      const { isSuccess, result, message: accessMessage } = await createBookings(sql);
       console.log(req.body, "req body insert sql ");
       if (!isSuccess) return res.status(400).json({ message: accessMessage });
     
