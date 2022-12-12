@@ -22,29 +22,31 @@ const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
   setSQL +`${field}=:${field} ` + ((index === fields.length - 1) ? '' : ', '), 'SET ');
 
 
-  const buildBookingsDeleteSql = (id) => {
+  const buildBookingsDeleteSql = () => {
     let table = 'bookings';
-    return `DELETE FROM ${table} WHERE BookingId=${id}`;
+    return `DELETE FROM ${table} WHERE BookingId=:BookingId`;
   };
 
-// const buildBookingsUpdateSql = () => {
-//   let table = `bookings`;
-//   let mutableFields = ['VehicleId', 'CustomerId', 'SalesId', 'DateBooked'];
+const buildBookingsUpdateSql = () => {
+  let table = `bookings`;
+  let mutableFields = ['VehicleId', 'CustomerId', 'SalesId', 'DateBooked'];
 
-//   return `UPDATE ${table} ` + buildSetFields(mutableFields) + ` WHERE BookingId=:BookingId `;
+  return `UPDATE ${table} ` + buildSetFields(mutableFields) + ` WHERE BookingId=:BookingId `;
 
-// };
+};
 
 const buildBookingsInsertSql = (record) => {
   let table = `bookings`;
-  // let mutableFields = ['VehicleId', 'SalesId', 'CustomerId', 'DateBooked'];
-  // console.log(buildSetFields(mutableFields), "build set fields");
-  // return `INSERT INTO ${table} ` + buildSetFields(mutableFields) ;
-  return `INSERT INTO ${table} SET
-          VehicleId="${record['VehicleId']}",
-          CustomerId="${record['CustomerId']}", 
-          SalesId="${record['SalesId']}",
-          DateBooked="${record['DateBooked']}"`
+  let mutableFields = ['VehicleId', 'SalesId', 'CustomerId', 'DateBooked'];
+  console.log(buildSetFields(mutableFields), "build set fields");
+  return `INSERT INTO ${table} ` + buildSetFields(mutableFields) ;
+  //  sql = `INSERT INTO ${table} SET
+  //         VehicleId="${record['VehicleId']}",
+  //         CustomerId="${record['CustomerId']}", 
+  //         SalesId="${record['SalesId']}",
+  //         DateBooked="${record['DateBooked']}"`;
+  //         return sql;
+
 };
 
 const buildBookingsSelectSql = (whereField, id) => {
@@ -65,24 +67,24 @@ const buildBookingsSelectSql = (whereField, id) => {
     let sql = `SELECT ${fields} FROM ${table}`;
     return sql;
   };
-//   const updateBookings = async (sql, id, record) => {
-//     try {
-//         const status = await database.query(sql, {...record, BookingId: id});
-//         if (status[0].affectedRows === 0)
-//       return { isSuccess: false, result: null, message: 'Failed to update record: no rows affected' };
+  const updateBookings = async (sql, id, record) => {
+    try {
+        const status = await database.query(sql, {...record, BookingId: id});
+        if (status[0].affectedRows === 0)
+      return { isSuccess: false, result: null, message: 'Failed to update record: no rows affected' };
 
-//     const recoverRecordSql = buildBookingsSelectSql(id, null);
+    const recoverRecordSql = buildBookingsSelectSql("BookingId", id);
 
-//     const { isSuccess, result, message } = await read(recoverRecordSql);
+    const { isSuccess, result, message } = await read(recoverRecordSql);
         
-//     return isSuccess
-//       ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
-//       : { isSuccess: false, result: null, message: `Failed to recover the updated record: ${message}` };
-//   }
-//   catch (error) {
-//     return { isSuccess: false, result: null, message: `Failed to execute query: ${error.message}` };
-//   }
-// };
+    return isSuccess
+      ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
+      : { isSuccess: false, result: null, message: `Failed to recover the updated record: ${message}` };
+  }
+  catch (error) {
+    return { isSuccess: false, result: null, message: `Failed to execute query: ${error.message}` };
+  }
+};
 
   
   const createBookings = async (sql, record) => {
@@ -113,7 +115,8 @@ const buildBookingsSelectSql = (whereField, id) => {
     };
     const deleteBookings = async (sql, id) => {
       try {
-        const status = await database.query(sql,{ BookingID: id });
+        const status = await database.query(sql,{ BookingId: id });
+        console.log(status[0].affectedRows)
         
         return status[0].affectedRows === 0
           ? { isSuccess: false, result: null, message: `Failed to delete record ${id}` }
@@ -127,9 +130,9 @@ const buildBookingsSelectSql = (whereField, id) => {
     const postBookingsController = async(req, res) => {
       // Validate Request 
       // Data Access 
-      const sql = buildBookingsInsertSql(req.body);
+      const sql = buildBookingsInsertSql();
       console.log(sql, "build insert syntax sql ");
-      const { isSuccess, result, message: accessMessage } = await createBookings(sql);
+      const { isSuccess, result, message: accessMessage } = await createBookings(sql, req.body);
       console.log(req.body, "req body insert sql ");
       if (!isSuccess) return res.status(400).json({ message: accessMessage });
     
@@ -160,18 +163,18 @@ const buildBookingsSelectSql = (whereField, id) => {
     res.status(200).json(result);
   };
 
-  // const putBookingsController = async(req, res) => {
-  //   // Validate Request 
-  //   const id = req.params.id;
-  //   const record = req.body;
-  //   // Data Access 
-  //   const sql = buildBookingsUpdateSql();
-  //   const { isSuccess, result, message: accessMessage } = await updateBookings(sql, id, record);
-  //   if (!isSuccess) return res.status(404).json({ message: accessMessage });
+  const putBookingsController = async(req, res) => {
+    // Validate Request 
+    const id = req.params.id;
+    const record = req.body;
+    // Data Access 
+    const sql = buildBookingsUpdateSql();
+    const { isSuccess, result, message: accessMessage } = await updateBookings(sql, id, record);
+    if (!isSuccess) return res.status(404).json({ message: accessMessage });
   
-  //   // Response to request
-  //   res.status(200).json(result);
-  // };
+    // Response to request
+    res.status(200).json(result);
+  };
 
 
   const deleteBookingsController = async (req, res) => {
@@ -184,7 +187,7 @@ const buildBookingsSelectSql = (whereField, id) => {
     if (!isSuccess) return res.status(400).json({ message: accessorMessage });
     
     // Response to request
-    res.status(204).json({ message: accessorMessage });
+    res.status(200).json({ message: accessorMessage });
   };
  
 
@@ -224,7 +227,7 @@ app.get('/api/bookings/customers/:id', (req, res) =>  bookingsController(res,"Cu
 app.post('/api/bookings', postBookingsController);
 
 // // PUT 
-// app.put('/api/bookings/:id', putBookingsController);
+app.put('/api/bookings/:id', putBookingsController);
 
 
 app.delete('/api/bookings/:id', deleteBookingsController);
