@@ -222,15 +222,15 @@ app.get('/api/bookings/sales/:id', (req, res) =>  bookingsController(res,"SalesI
 app.get('/api/bookings/users/:id', (req, res) =>  bookingsController(res,"CustomerId",  req.params.id));
 app.get('/api/bookings/customers/:id', (req, res) =>  bookingsController(res,"CustomerId",  req.params.id));
 
-
 // POST 
 app.post('/api/bookings', postBookingsController);
 
 // // PUT 
 app.put('/api/bookings/:id', putBookingsController);
 
-
+//DELETE
 app.delete('/api/bookings/:id', deleteBookingsController);
+
 
 // Vehicles 
 app.get('/api/vehicles', (req, res) =>  vehiclesController(res, null, null));
