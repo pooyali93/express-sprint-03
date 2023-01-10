@@ -35,18 +35,19 @@ const buildBookingsUpdateSql = () => {
 
 };
 
-const buildBookingsInsertSql = (record) => {
+const buildBookingsInsertSql = () => {
   let table = `bookings`;
   let mutableFields = ['VehicleId', 'SalesId', 'CustomerId', 'DateBooked'];
   console.log(buildSetFields(mutableFields), "build set fields");
   return `INSERT INTO ${table} ` + buildSetFields(mutableFields) ;
-  //  sql = `INSERT INTO ${table} SET
-  //         VehicleId="${record['VehicleId']}",
-  //         CustomerId="${record['CustomerId']}", 
-  //         SalesId="${record['SalesId']}",
-  //         DateBooked="${record['DateBooked']}"`;
-  //         return sql;
+};
 
+// Build Insert Vehicles SQL 
+const buildVehiclesInsertSql = () => {
+  let table = `vehicles`;
+  let mutableFields = ['VehicleURL', 'VehicleMake', 'VehicleModel', 'VehicleColour', 'VehicleYear', 'VehicleNumberOfDoors', 'VehiclePrice', 'VehicleFuelType', 'VehicleTransmission', 'VehicleEngineSize', 'VehicleMileage'];
+  console.log(buildSetFields(mutableFields), "build vehicle insert fields");
+  return `INSERT INTO ${table} ` + buildSetFields(mutableFields) ;
 };
 
 const buildBookingsSelectSql = (whereField, id) => {
@@ -61,12 +62,15 @@ const buildBookingsSelectSql = (whereField, id) => {
 
 
   // Build Vehicle Select Sql 
-  const buildVehiclesSelectSql = () => {
+  const buildVehiclesSelectSql = (whereField, id) => {
     let table = 'vehicles';
-    let fields = ['VehicleId, VehicleMake, VehicleModel, VehicleYear,VehiclePrice'];
+    let fields = ['VehicleURL', 'VehicleMake', 'VehicleModel', 'VehicleColour', 'VehicleYear', 'VehicleNumberOfDoors', 'VehiclePrice', 'VehicleFuelType', 'VehicleTransmission', 'VehicleEngineSize', 'VehicleMileage'];
     let sql = `SELECT ${fields} FROM ${table}`;
+    if (id) sql += ` WHERE ${whereField}=${id}`;
     return sql;
   };
+
+
   const updateBookings = async (sql, id, record) => {
     try {
         const status = await database.query(sql, {...record, BookingId: id});
@@ -139,6 +143,37 @@ const buildBookingsSelectSql = (whereField, id) => {
       // Response to request
       res.status(201).json(result);
     };
+
+
+    // Create Vehicle
+    const createVehicles = async (sql, record) => {
+      try {
+          const status = await database.query(sql,record);
+          const recoverRecordSql = buildVehiclesSelectSql(status[0].insertId);
+          const {isSuccess, result, message} = await read(recoverRecordSql);
+          return isSuccess
+            ? { isSuccess: true, result: result, message: 'Record(s) successfully recovered' }
+            : { isSuccess: false, result: null, message: `Failed to recover the inserted record: ${message}`};
+        }
+        catch (error) {
+          return { isSuccess: false, result: null, message: `Failed to execute query: ${error.message}` };
+        }
+      };
+
+
+    // Post /vehicles 
+    const postVehiclesController = async(req, res) => {
+      // Validate Request 
+      // Data Access 
+      const sql = buildVehiclesInsertSql();
+      console.log(sql, "build insert syntax sql ");
+      const { isSuccess, result, message: accessMessage } = await createVehicles(sql, req.body);
+      console.log(req.body, "req body insert sql ");
+      if (!isSuccess) return res.status(400).json({ message: accessMessage });
+    
+      // Response to request
+      res.status(201).json(result);
+    };
   
 
 
@@ -192,9 +227,9 @@ const buildBookingsSelectSql = (whereField, id) => {
  
 
   // Vehicle Controller 
-  const vehiclesController = async(res) => {
+  const vehiclesController = async(res,whereField, id) => {
     // Data Access 
-    const sql = buildVehiclesSelectSql();
+    const sql = buildVehiclesSelectSql(whereField, id);
     const { isSuccess, result, message: accessMessage } = await read(sql);
     if (!isSuccess) return res.status(400).json({ message: accessMessage });
   
@@ -224,6 +259,7 @@ app.get('/api/bookings/customers/:id', (req, res) =>  bookingsController(res,"Cu
 
 // POST 
 app.post('/api/bookings', postBookingsController);
+app.post('/api/vehicles', postVehiclesController);
 
 // // PUT 
 app.put('/api/bookings/:id', putBookingsController);
@@ -234,7 +270,7 @@ app.delete('/api/bookings/:id', deleteBookingsController);
 
 // Vehicles 
 app.get('/api/vehicles', (req, res) =>  vehiclesController(res, null, null));
-app.get('/api/vehicles/:id(\\d+)',(req, res) =>  vehiclesController(res, "BookingId",  req.params.id));
+app.get('/api/vehicles/:id(\\d+)',(req, res) =>  vehiclesController(res, "VehicleId",  req.params.id));
 
 // Users
 const SALESPERSON = 1;
